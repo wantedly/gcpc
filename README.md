@@ -46,7 +46,7 @@ publisher.publish("<message payload>")
 
 By using interceptors, you can add some functionality to the publisher.
 
-For example, by adding `LogInterceptor` as below, you can add a logging feature.
+For example, you can add logging functionality by adding `LogInterceptor` as shown below.
 
 ```ruby
 class LogInterceptor < Gcpc::Publisher::BaseInterceptor
@@ -118,7 +118,7 @@ subscriber.run(['SIGINT', 'SIGTERM', 'SIGSTOP', 'SIGTSTP'])
 
 By using interceptors, you can add some functionality to the subscriber.
 
-For example, by adding `LogInterceptor` as below, you can add a logging feature.
+For example, you can add logging functionality by adding `LogInterceptor` as shown below.
 
 ```ruby
 class LogInterceptor < Gcpc::Subscriber::BaseInterceptor
