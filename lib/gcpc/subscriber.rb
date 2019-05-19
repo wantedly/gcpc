@@ -65,6 +65,6 @@ module Gcpc
 
     extend Forwardable
 
-    def_delegators :@engine, :handle, :run
+    def_delegators :@engine, :handle, :run, :stop
   end
 end

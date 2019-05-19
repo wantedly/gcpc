@@ -23,6 +23,9 @@ module Gcpc
 
         @subscriber      = nil  # @subscriber is created by calling `#run`
         @handler         = nil  # @handler must be registered by `#handle`
+
+        @stopped_mutex = Mutex.new
+        @stopped       = false
       end
 
       # @param [<String>] signals Signals which are used to shutdown subscriber
@@ -51,6 +54,13 @@ module Gcpc
         if @subscriber.nil?
           raise "You must call #run before stopping"
         end
+
+        @stopped_mutex.synchronize do
+          # `#stop` may be called multiple times. Only first call can proceed.
+          return if @stopped
+          @stopped = true
+        end
+
         @logger.info('Stopping, will wait for background threads to exit')
 
         @subscriber.stop
@@ -71,13 +81,15 @@ module Gcpc
     private
 
       def loop_until_receiving_signals(signals)
-        stopped = false
+        signal_received = false
         signals.each do |signal|
-          Signal.trap(signal) { stopped = true }
+          Signal.trap(signal) { signal_received = true }
         end
-        sleep WAIT_INTERVAL until stopped
+        while !(signal_received || @stopped_mutex.synchronize { @stopped })
+          sleep WAIT_INTERVAL
+        end
 
-        stop
+        stop unless @stopped_mutex.synchronize { @stopped }
       end
 
       # @param [Google::Cloud::Pubsub::ReceivedMessage] message
