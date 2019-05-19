@@ -4,6 +4,10 @@ language: ruby
 cache: bundler
 rvm:
   - 2.6.2
-before_install: gem install bundler -v 1.17.2
+before_install:
+  - gem install bundler -v 1.17.2
+  # Start gcloud pubsub emulator. See https://cloud.google.com/pubsub/docs/emulator
+  - docker run -d -p 8085:8085 -it google/cloud-sdk:latest gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
 script:
-- bundle exec rspec
+  - bundle exec rspec
+  - bundle exec rspec --tag emulator
