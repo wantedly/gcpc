@@ -85,11 +85,11 @@ module Gcpc
         signals.each do |signal|
           Signal.trap(signal) { signal_received = true }
         end
-        while !(signal_received || @stopped_mutex.synchronize { @stopped })
+        while !(signal_received || stopped?)
           sleep WAIT_INTERVAL
         end
 
-        stop unless @stopped_mutex.synchronize { @stopped }
+        stop unless stopped?
       end
 
       # @param [Google::Cloud::Pubsub::ReceivedMessage] message
@@ -125,6 +125,10 @@ module Gcpc
         e_str = "#{error.message}"
         e_str += "\n#{error.backtrace.join("\n")}" if error.backtrace
         @logger.error("[Worker #{Thread.current.object_id}] #{e_str}")
+      end
+
+      def stopped?
+        @stopped_mutex.synchronize { @stopped }
       end
     end
   end
