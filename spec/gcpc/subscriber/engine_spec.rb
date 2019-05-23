@@ -83,44 +83,81 @@ describe Gcpc::Subscriber::Engine do
         pubsub_resource_manager.cleanup_resource!
       end
 
-      before do
-        stub_const "Handler", Class.new
-        class Handler
-          def initialize
-            @handled_messages = []
-          end
+      context "when handler succeeds to handle" do
+        before do
+          stub_const "Handler", Class.new
+          class Handler
+            def initialize
+              @handled_messages = []
+            end
 
-          attr_reader :handled_messages
+            attr_reader :handled_messages
 
-          def handle(message)
-            @handled_messages << message
+            def handle(message)
+              @handled_messages << message
+            end
           end
+        end
+
+        it "calls Google::Cloud::Pubsub::Subscription#start" do
+          subscription = pubsub_resource_manager.subscription
+          engine = Gcpc::Subscriber::Engine.new(
+            subscription: subscription
+          )
+          handler = Handler.new
+          engine.handle(handler)
+
+          # Don't do loop in #loop_until_receiving_signals
+          expect(engine).to receive(:loop_until_receiving_signals).once
+
+          engine.run
+
+          topic = pubsub_resource_manager.topic
+          topic.publish("published payload")
+
+          sleep 1  # Wait until message is subscribed
+
+          expect(handler.handled_messages.size).to eq 1
+          m = handler.handled_messages.first
+          expect(m.data).to eq "published payload"
+
+          engine.stop
         end
       end
 
-      it "calls Google::Cloud::Pubsub::Subscription#start" do
-        subscription = pubsub_resource_manager.subscription
-        engine = Gcpc::Subscriber::Engine.new(
-          subscription: subscription
-        )
-        handler = Handler.new
-        engine.handle(handler)
+      context "when handler fails to handle" do
+        before do
+          stub_const "Handler", Class.new
+          class Handler
+            def handle(message)
+              raise "Failure occured in #handle!"
+            end
+          end
+        end
 
-        # Don't do loop in #loop_until_receiving_signals
-        expect(engine).to receive(:loop_until_receiving_signals).once
+        it "calls Subscriber::Engine#nack and Subscriber::Engine#handle_error" do
+          subscription = pubsub_resource_manager.subscription
+          engine = Gcpc::Subscriber::Engine.new(
+            subscription: subscription
+          )
+          handler = Handler.new
+          engine.handle(handler)
 
-        engine.run
+          # Don't do loop in #loop_until_receiving_signals
+          expect(engine).to receive(:loop_until_receiving_signals).once
 
-        topic = pubsub_resource_manager.topic
-        topic.publish("published payload")
+          expect(engine).to receive(:nack).once
+          expect(engine).to receive(:handle_error).once
 
-        sleep 1  # Wait until message is subscribed
+          engine.run
 
-        expect(handler.handled_messages.size).to eq 1
-        m = handler.handled_messages.first
-        expect(m.data).to eq "published payload"
+          topic = pubsub_resource_manager.topic
+          topic.publish("published payload")
 
-        engine.stop
+          sleep 1  # Wait until message is subscribed
+
+          engine.stop
+        end
       end
     end
   end
@@ -178,8 +215,8 @@ describe Gcpc::Subscriber::Engine do
         end
       end
 
-      def message.acknowledge!
-        OrderContainer.append("message is acknowledged")
+      def message.ack!
+        OrderContainer.append("message is acked")
       end
 
       def handler.handle(message)
@@ -197,10 +234,10 @@ describe Gcpc::Subscriber::Engine do
       }
       let(:subscription) { double(:subscription) }
 
-      it "calls acknowledge! before calling handler#handle" do
+      it "calls ack! before calling handler#handle" do
         subject
         expect(OrderContainer.container).to eq [
-          "message is acknowledged",
+          "message is acked",
           "message is handled",
         ]
       end
@@ -215,11 +252,11 @@ describe Gcpc::Subscriber::Engine do
       }
       let(:subscription) { double(:subscription) }
 
-      it "calls acknowledge! after calling handler#handle" do
+      it "calls ack! after calling handler#handle" do
         subject
         expect(OrderContainer.container).to eq [
           "message is handled",
-          "message is acknowledged",
+          "message is acked",
         ]
       end
     end
