@@ -4,26 +4,6 @@ require "gcpc/subscriber/default_logger"
 require "gcpc/subscriber/engine"
 require "gcpc/subscriber/subscription_client"
 
-## About gcpc
-#
-# - [ ] README.md
-#   - [ ] remove sample code below
-# - [ ] examples/README.md
-
-## About gcpc-interceptors (seems to https://github.com/cookpad/griffin-interceptors)
-# - [ ] impl gcpc-interceptors
-
-# subscriber = Gcpc::Subscriber.new(
-#   project_id:      "xxx",
-#   subscription:    "xxx",
-#   credentials:     "xxx",  # string of path or `Google::Cloud::Pubsub::Credential` object.
-#   interceptors:    [xxx],
-#   ack_immediately: true,
-#   logger:          Rails.logger,
-# )
-# subscriber.handle(XXXHandler)
-# subscriber.run
-
 module Gcpc
   class Subscriber
     # @param [String] project_id
