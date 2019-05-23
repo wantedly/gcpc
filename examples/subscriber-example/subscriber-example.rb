@@ -15,15 +15,19 @@ SUBSCRIPTION_NAME = "subscription-example-1"
 MyLogger = Logger.new(STDOUT)
 
 class LogInterceptor < Gcpc::Subscriber::BaseInterceptor
-  def handle(message)
+  def handle(data, attributes, message)
     MyLogger.info "[Interceptor Log] #{message.inspect}"
-    yield message
+    MyLogger.info "[Interceptor Log] data: #{data}"
+    MyLogger.info "[Interceptor Log] attributes: #{attributes}"
+    yield data, attributes, message
   end
 end
 
 class LogHandler < Gcpc::Subscriber::BaseHandler
-  def handle(message)
+  def handle(data, attributes, message)
     MyLogger.info "[Handler Log] #{message.inspect}"
+    MyLogger.info "[Handler Log] data: #{data}"
+    MyLogger.info "[Handler Log] attributes: #{attributes}"
   end
 end
 

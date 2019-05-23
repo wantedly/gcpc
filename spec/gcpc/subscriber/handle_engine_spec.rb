@@ -23,36 +23,39 @@ describe Gcpc::Subscriber::HandleEngine do
       let(:interceptors) { [hello_interceptor, world_interceptor] }
       let(:hello_interceptor) {
         Class.new(Gcpc::Subscriber::BaseInterceptor) do
-          # @param [Gcpc::Subscriber::Message] message
+          # @param [String] data
+          # @param [Hash] attributes
+          # @param [Google::Cloud::Pubsub::ReceivedMessage] _
           # @param [Proc] block
-          def handle(message, &block)
-            message.data << "Hello"
-            message.attributes.merge!(hello_interceptor: true)
-            yield(message)
+          def handle(data, attributes, _, &block)
+            data << "Hello"
+            attributes.merge!(hello_interceptor: true)
+            yield data, attributes, _
           end
         end
       }
       let(:world_interceptor) {
         Class.new do
-          # @param [Gcpc::Subscriber::Message] message
+          # @param [String] data
+          # @param [Hash] attributes
+          # @param [Google::Cloud::Pubsub::ReceivedMessage] _
           # @param [Proc] block
-          def handle(message, &block)
-            message.data << ", World"
-            message.attributes.merge!(world_interceptor: true)
-            yield(message)
+          def handle(data, attributes, _, &block)
+            data << ", World"
+            attributes.merge!(world_interceptor: true)
+            yield data, attributes, _
           end
         end
       }
 
       it "should call a handler's #handle after calling interceptors' #handle in order" do
-        handled_message = Gcpc::Subscriber::Message.new(received_message)
-        handled_message.data = "Hello, World"
-        handled_message.attributes = {
+        data = "Hello, World"
+        attributes = {
           hello_interceptor: true,
           world_interceptor: true,
         }
         expect(handler).to receive(:handle)
-          .with(handled_message)
+          .with(data, attributes, received_message)
           .once
         subject
 
@@ -66,9 +69,11 @@ describe Gcpc::Subscriber::HandleEngine do
       let(:interceptors) { [interceptor] }
       let(:interceptor) {
         Class.new do
-          # @param [Gcpc::Subscriber::Message] message
+          # @param [String] data
+          # @param [Hash] attributes
+          # @param [Google::Cloud::Pubsub::ReceivedMessage] _
           # @param [Proc] block
-          def handle(message, &block)
+          def handle(data, attributes, _, &block)
             # Do nothing
           end
         end

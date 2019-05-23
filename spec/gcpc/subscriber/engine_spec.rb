@@ -88,13 +88,13 @@ describe Gcpc::Subscriber::Engine do
           stub_const "Handler", Class.new
           class Handler
             def initialize
-              @handled_messages = []
+              @handled = []
             end
 
-            attr_reader :handled_messages
+            attr_reader :handled
 
-            def handle(message)
-              @handled_messages << message
+            def handle(data, attributes, message)
+              @handled << data
             end
           end
         end
@@ -117,9 +117,8 @@ describe Gcpc::Subscriber::Engine do
 
           sleep 1  # Wait until message is subscribed
 
-          expect(handler.handled_messages.size).to eq 1
-          m = handler.handled_messages.first
-          expect(m.data).to eq "published payload"
+          expect(handler.handled.size).to eq 1
+          expect(handler.handled.first).to eq "published payload"
 
           engine.stop
         end
@@ -129,7 +128,7 @@ describe Gcpc::Subscriber::Engine do
         before do
           stub_const "Handler", Class.new
           class Handler
-            def handle(message)
+            def handle(data, attributes, message)
               raise "Failure occured in #handle!"
             end
           end
@@ -219,7 +218,7 @@ describe Gcpc::Subscriber::Engine do
         OrderContainer.append("message is acked")
       end
 
-      def handler.handle(message)
+      def handler.handle(data, attributes, message)
         OrderContainer.append("message is handled")
       end
     end

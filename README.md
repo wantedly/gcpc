@@ -89,8 +89,10 @@ Then, call `Gcpc::Subscriber#handle` to register a handler. A registered handler
 
 ```ruby
 class NopHandler < Gcpc::Subscriber::BaseHandler
-  # @param [Gcpc::Subscriber::Message] message
-  def handle(message)
+  # @param [String] data
+  # @param [Hash] attributes
+  # @param [Google::Cloud::Pubsub::ReceivedMessage] message
+  def handle(data, attributes, message)
     # Do nothing. Consume only.
   end
 end
@@ -124,10 +126,12 @@ For example, you can add logging functionality by adding `LogInterceptor` as sho
 class LogInterceptor < Gcpc::Subscriber::BaseInterceptor
   MyLogger = Logger.new(STDOUT)
 
-  # @param [Gcpc::Subscriber::Message] message
-  def handle(message)
+  # @param [String] data
+  # @param [Hash] attributes
+  # @param [Google::Cloud::Pubsub::ReceivedMessage] message
+  def handle(data, attributes, message)
     MyLogger.info "[Interceptor Log] subscribed a message: #{message}"
-    yield message
+    yield data, attributes, message
   end
 end
 
