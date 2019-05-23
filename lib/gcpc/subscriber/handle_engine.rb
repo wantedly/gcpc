@@ -1,5 +1,3 @@
-require "gcpc/subscriber/message"
-
 module Gcpc
   class Subscriber
     # HandleEngine handle messages and exceptions with interceptors.
@@ -13,10 +11,11 @@ module Gcpc
 
       # @param [Google::Cloud::Pubsub::ReceivedMessage] message
       def handle(message)
-        m = Message.new(message)
+        d = message.data.dup
+        a = message.attributes.dup
 
-        intercept_message!(@interceptors, m) do |mm|
-          handle_message(mm)
+        intercept_message!(@interceptors, d, a, message) do |dd, aa, m|
+          handle_message(dd, aa, m)
         end
       end
 
@@ -30,18 +29,20 @@ module Gcpc
     private
 
       # @param [<#handle>] interceptors
-      # @param [Message] message
+      # @param [String] data
+      # @param [Hash] attributes
+      # @param [Google::Cloud::Pubsub::ReceivedMessage] message
       # @param [Proc] block
-      def intercept_message!(interceptors, message, &block)
+      def intercept_message!(interceptors, data, attributes, message, &block)
         if interceptors.size == 0
-          return yield(message)
+          return yield(data, attributes, message)
         end
 
         i    = interceptors.first
         rest = interceptors[1..-1]
 
-        i.handle(message) do |m|
-          intercept_message!(rest, m, &block)
+        i.handle(data, attributes, message) do |d, a, m|
+          intercept_message!(rest, d, a, m, &block)
         end
       end
 
@@ -65,9 +66,11 @@ module Gcpc
         end
       end
 
-      # @param [Message] message
-      def handle_message(message)
-        @handler.handle(message)
+      # @param [String] data
+      # @param [Hash] attributes
+      # @param [Google::Cloud::Pubsub::ReceivedMessage] message
+      def handle_message(data, attributes, message)
+        @handler.handle(data, attributes, message)
       end
 
       # @param [Exception] error
