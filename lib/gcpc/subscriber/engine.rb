@@ -94,19 +94,28 @@ module Gcpc
 
       # @param [Google::Cloud::Pubsub::ReceivedMessage] message
       def handle_message(message)
-        if @ack_immediately
-          message.acknowledge!
-          worker_info("Acknowledged message")
+        ack(message) if @ack_immediately
+
+        begin
+          worker_info("Started hanlding message")
+          @handler.handle(message)
+          worker_info("Finished hanlding message successfully")
+        rescue => e
+          nack(message) if !@ack_immediately
+          raise e  # exception is handled in `#handle_error`
         end
 
-        worker_info("Started hanlding message")
-        @handler.handle(message)
-        worker_info("Finished hanlding message successfully")
+        ack(message) if !@ack_immediately
+      end
 
-        if !@ack_immediately
-          message.acknowledge!
-          worker_info("Acknowledged message")
-        end
+      def ack(message)
+        message.ack!
+        worker_info("Acked message")
+      end
+
+      def nack(message)
+        message.nack!
+        worker_info("Nacked message")
       end
 
       # @param [Exception] error
