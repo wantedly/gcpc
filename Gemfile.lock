@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    gcpc (0.0.3)
+    gcpc (0.0.4)
       google-cloud-pubsub
 
 GEM
