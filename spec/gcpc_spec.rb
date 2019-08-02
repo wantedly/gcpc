@@ -58,5 +58,38 @@ describe Gcpc do
       subscriber.stop
       subscriber_thread.join
     end
+
+    it "succeeds to publish_async and subscribe messages" do
+      stub_handler = double(:stub_handler)
+      expect(stub_handler).to receive(:handle).once
+
+      subscriber = Gcpc::Subscriber.new(
+        project_id:    project_id,
+        subscription:  subscription_name,
+        emulator_host: "localhost:8085",
+      )
+      subscriber.handle(stub_handler)
+
+      # Start subscriber in another thread
+      subscriber_thread = Thread.new(subscriber) do |subscriber|
+        subscriber.run
+      end
+
+      publisher = Gcpc::Publisher.new(
+        project_id:    project_id,
+        topic:         topic_name,
+        emulator_host: emulator_host,
+      )
+      data = "message payload"
+      attributes = { publisher: "publisher-example" }
+      publisher.publish_async(data, attributes)
+      publisher.topic.async_publisher.stop.wait!  # Wait for asynchronous publishing
+
+      sleep 1  # Wait for publish / subscribe a message
+
+      # Stop the subscriber and its thread.
+      subscriber.stop
+      subscriber_thread.join
+    end
   end
 end
