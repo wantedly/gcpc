@@ -69,15 +69,63 @@ describe Gcpc::Publisher::Engine do
         subject
       end
     end
+
+    context "when emulator is running on localhost:8085", emulator: true do
+      let(:pubsub_resource_manager) {
+        PubsubResourceManager.new(
+          project_id:        "project-test-1",
+          topic_name:        topic_name,
+          emulator_host:     "localhost:8085",
+        )
+      }
+      let(:topic_name) { "topic-test-1" }
+
+      around do |example|
+        pubsub_resource_manager.setup_resource!
+        example.run
+        pubsub_resource_manager.cleanup_resource!
+      end
+
+      it "publishes messages" do
+        topic = pubsub_resource_manager.topic
+        engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [])
+        r = engine.publish("data1")
+        expect(r.data).to eq "data1"
+      end
+    end
+  end
+
+  describe "#publish_batch" do
+    context "when emulator is running on localhost:8085", emulator: true do
+      let(:pubsub_resource_manager) {
+        PubsubResourceManager.new(
+          project_id:        "project-test-1",
+          topic_name:        topic_name,
+          emulator_host:     "localhost:8085",
+        )
+      }
+      let(:topic_name) { "topic-test-1" }
+
+      around do |example|
+        pubsub_resource_manager.setup_resource!
+        example.run
+        pubsub_resource_manager.cleanup_resource!
+      end
+
+      it "publishes messages" do
+        topic = pubsub_resource_manager.topic
+        engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [])
+        r = engine.publish_batch do |t|
+          t.publish("data1")
+          t.publish("data2")
+          t.publish("data3")
+        end
+        expect(r.map(&:data)).to eq ["data1", "data2", "data3"]
+      end
+    end
   end
 
   describe "#publish_async" do
-    let(:engine) {
-      Gcpc::Publisher::Engine.new(
-        topic:        topic,
-        interceptors: interceptors,
-      )
-    }
     context "when emulator is running on localhost:8085", emulator: true do
       let(:pubsub_resource_manager) {
         PubsubResourceManager.new(
@@ -99,12 +147,17 @@ describe Gcpc::Publisher::Engine do
         it "publishes messages" do
           topic = pubsub_resource_manager.topic
           engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [])
-          r = 0
+          q = Thread::Queue.new
           3.times do |i|
-            engine.publish_async(data) { |_| r += 1 }
+            engine.publish_async(data) { |r| q.push(r) }
           end
           engine.topic.async_publisher.stop.wait!
-          expect(r).to eq 3
+          a = []
+          while (q.size > 0)
+            a << q.pop
+          end
+          expect(a.map(&:succeeded?)).to eq [true, true, true]
+          expect(a.map(&:data)).to eq [data, data, data]
         end
       end
     end
