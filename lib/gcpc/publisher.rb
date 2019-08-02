@@ -37,6 +37,6 @@ module Gcpc
 
     extend Forwardable
 
-    def_delegators :@engine, :publish
+    def_delegators :@engine, :publish, :publish_async, :topic
   end
 end

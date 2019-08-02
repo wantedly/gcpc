@@ -8,6 +8,8 @@ module Gcpc
         @interceptors = interceptors.map { |i| (i.class == Class) ? i.new : i }
       end
 
+      attr_reader :topic
+
       # @param [String] data
       # @param [Hash] attributes
       def publish(data, attributes = {})
@@ -15,7 +17,16 @@ module Gcpc
         a = attributes.dup
 
         intercept!(@interceptors, d, a) do |dd, aa|
-          publish_message(dd, aa)
+          do_publish(dd, aa)
+        end
+      end
+
+      def publish_async(data, attributes = {}, &block)
+        d = data.dup
+        a = attributes.dup
+
+        intercept!(@interceptors, d, a) do |dd, aa|
+          do_publish_async(dd, aa, &block)
         end
       end
 
@@ -40,8 +51,15 @@ module Gcpc
 
       # @param [String] data
       # @param [Hash] attributes
-      def publish_message(data, attributes)
+      def do_publish(data, attributes)
         @topic.publish(data, attributes)
+      end
+
+      # @param [String] data
+      # @param [Hash] attributes
+      # @param [Proc] block
+      def do_publish_async(data, attributes, &block)
+        @topic.publish_async(data, attributes, &block)
       end
     end
   end

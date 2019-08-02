@@ -1,4 +1,5 @@
 require "spec_helper"
+require "support/pubsub_resource_manager"
 
 describe Gcpc::Publisher::Engine do
   describe "#publish" do
@@ -66,6 +67,45 @@ describe Gcpc::Publisher::Engine do
       it "does not call a topic's #handle" do
         expect(topic).not_to receive(:handle)
         subject
+      end
+    end
+  end
+
+  describe "#publish_async" do
+    let(:engine) {
+      Gcpc::Publisher::Engine.new(
+        topic:        topic,
+        interceptors: interceptors,
+      )
+    }
+    context "when emulator is running on localhost:8085", emulator: true do
+      let(:pubsub_resource_manager) {
+        PubsubResourceManager.new(
+          project_id:        "project-test-1",
+          topic_name:        topic_name,
+          emulator_host:     "localhost:8085",
+        )
+      }
+      let(:topic_name) { "topic-test-1" }
+      let(:data) { "data" }
+
+      around do |example|
+        pubsub_resource_manager.setup_resource!
+        example.run
+        pubsub_resource_manager.cleanup_resource!
+      end
+
+      context "when block is given" do
+        it "publishes messages" do
+          topic = pubsub_resource_manager.topic
+          engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [])
+          r = 0
+          3.times do |i|
+            engine.publish_async(data) { |_| r += 1 }
+          end
+          engine.topic.async_publisher.stop.wait!
+          expect(r).to eq 3
+        end
       end
     end
   end
