@@ -88,9 +88,10 @@ describe Gcpc::Publisher::Engine do
 
       it "publishes messages" do
         topic = pubsub_resource_manager.topic
-        engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [])
+        engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [id_interceptor])
         r = engine.publish("data1")
         expect(r.data).to eq "data1"
+        expect(r.attributes).to eq({ "id" => "1" })
       end
     end
   end
@@ -114,13 +115,14 @@ describe Gcpc::Publisher::Engine do
 
       it "publishes messages" do
         topic = pubsub_resource_manager.topic
-        engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [])
+        engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [id_interceptor])
         r = engine.publish_batch do |t|
           t.publish("data1")
           t.publish("data2")
           t.publish("data3")
         end
         expect(r.map(&:data)).to eq ["data1", "data2", "data3"]
+        expect(r.map(&:attributes)).to eq [{ "id" => "1" }, { "id" => "1" }, { "id" => "1" }]
       end
     end
   end
@@ -146,7 +148,7 @@ describe Gcpc::Publisher::Engine do
       context "when block is given" do
         it "publishes messages" do
           topic = pubsub_resource_manager.topic
-          engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [])
+          engine = Gcpc::Publisher::Engine.new(topic: topic, interceptors: [id_interceptor])
           q = Thread::Queue.new
           3.times do |i|
             engine.publish_async(data) { |r| q.push(r) }
@@ -158,7 +160,17 @@ describe Gcpc::Publisher::Engine do
           end
           expect(a.map(&:succeeded?)).to eq [true, true, true]
           expect(a.map(&:data)).to eq [data, data, data]
+          expect(a.map(&:attributes)).to eq [{ "id" => "1" }, { "id" => "1" }, { "id" => "1" }]
         end
+      end
+    end
+  end
+
+  def id_interceptor
+    Class.new(Gcpc::Subscriber::BaseInterceptor) do
+      def publish(data, attributes, &block)
+        attributes.merge!(id: 1)
+        yield(data, attributes)
       end
     end
   end
