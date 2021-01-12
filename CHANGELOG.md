@@ -4,6 +4,8 @@
 <!-- All changes (implementation, or doc changes) are worth noting. -->
 <!-- The changes listed above will go below when a new release is being prepared. -->
 
+## 0.0.7
+
 - Add explicit loading of forwardable https://github.com/south37/gcpc/pull/10
 - Add ruby 2.7 as a test target https://github.com/south37/gcpc/pull/12
 
