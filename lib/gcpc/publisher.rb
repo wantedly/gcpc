@@ -1,3 +1,4 @@
+require "forwardable"
 require "gcpc/publisher/base_interceptor"
 require "gcpc/publisher/engine"
 require "gcpc/publisher/topic_client"
