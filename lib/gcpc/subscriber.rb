@@ -1,3 +1,4 @@
+require "forwardable"
 require "gcpc/subscriber/base_handler"
 require "gcpc/subscriber/base_interceptor"
 require "gcpc/subscriber/default_logger"
