@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = %q{Google Cloud Pub/Sub Client}
   spec.description   = %q{Google Cloud Pub/Sub Client}
-  spec.homepage      = "https://github.com/south37/gcpc"
+  spec.homepage      = "https://github.com/wantedly/gcpc"
   spec.license       = "MIT"
 
   # Specify which files should be added to the gem when it is released.

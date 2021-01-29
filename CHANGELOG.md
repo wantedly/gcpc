@@ -6,14 +6,14 @@
 
 ## 0.0.7
 
-- Add explicit loading of forwardable https://github.com/south37/gcpc/pull/10
-- Add ruby 2.7 as a test target https://github.com/south37/gcpc/pull/12
+- Add explicit loading of forwardable https://github.com/wantedly/gcpc/pull/10
+- Add ruby 2.7 as a test target https://github.com/wantedly/gcpc/pull/12
 
 ## 0.0.6
 
-- Add test of interceptors https://github.com/south37/gcpc/pull/7
-- Add publish_batch https://github.com/south37/gcpc/pull/6
+- Add test of interceptors https://github.com/wantedly/gcpc/pull/7
+- Add publish_batch https://github.com/wantedly/gcpc/pull/6
 
 ## 0.0.5
 
-- Add publish_async https://github.com/south37/gcpc/pull/5
+- Add publish_async https://github.com/wantedly/gcpc/pull/5
