@@ -14,7 +14,7 @@ jobs:
     - name: 'test with a emulator'
       before_install:
         # Start a Cloud Pub/Sub emulator. See https://cloud.google.com/pubsub/docs/emulator
-        # We use `google/cloud-sdk:321.0.0` because we can't start pubsub with the latest.
-        - docker run -d -p 8085:8085 -it google/cloud-sdk:321.0.0 gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
+        # We use `gcr.io/google.com/cloudsdktool/cloud-sdk:321.0.0` because we can't start pubsub with the latest.
+        - docker run -d -p 8085:8085 -it gcr.io/google.com/cloudsdktool/cloud-sdk:321.0.0 gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
       script:
         - bundle exec rspec --tag emulator
