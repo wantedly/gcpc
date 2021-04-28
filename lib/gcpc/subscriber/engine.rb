@@ -97,7 +97,7 @@ module Gcpc
         ack(message) if @ack_immediately
 
         begin
-          worker_info("Started hanlding message")
+          worker_info("Started handling message")
           @handler.handle(message)
           worker_info("Finished hanlding message successfully")
         rescue => e
