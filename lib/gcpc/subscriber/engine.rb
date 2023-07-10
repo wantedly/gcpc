@@ -108,9 +108,10 @@ module Gcpc
         # ・When processing a message, write the thread_id and timestamp at the start time into @heartbeat_queue,
         #   and remove that information from @heartbeat_queue when the processing within that thread is finished.
         # ・If the processing of the message gets stuck, the timestamp will not be removed from @heartbeat_queue.
-        # ・Since the application holds as many streams as @subscriber.streams(int) with Subscription,
-        #   if the number of threads that have gotten stuck exceeds that stream, it is considered that the worker　unable to process Subscription queue.
-        return @heartbeat_queue.find_all{ |q| q[:start] < Time.now.to_i - WORKER_DEAD_THRESHOLD }.length >= @subscriber.streams
+        # ・Since the application holds as many callback_threads as @subscriber.callback_threads with Subscription,
+        #   if the number of threads that have gotten stuck exceeds that callback_threads, it is considered that the worker unable to process Subscription queue.
+        number_of_dead_threads = @heartbeat_queue.find_all{ |q| q[:start] < Time.now.to_i - WORKER_DEAD_THRESHOLD }.length 
+        return number_of_dead_threads >= @subscriber.callback_threads
       end
 
       def check_heartbeat
