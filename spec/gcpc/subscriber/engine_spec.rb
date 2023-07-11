@@ -1,8 +1,18 @@
 require "spec_helper"
 require "support/pubsub_resource_manager"
+require 'fileutils'
+require "tempfile"
 
 describe Gcpc::Subscriber::Engine do
   describe "#run and #stop" do
+    def heartbeat_value(file)
+      return nil if !File.exist?(file)
+
+      File.read(file).chomp.to_i
+    end
+
+    let(:temp_heartbeat_file_path) { Tempfile.open(['worker_heartbeat']) }
+
     context "when emulator is not running" do
       before do
         stub_const "FakeSubscription", Class.new
@@ -34,16 +44,20 @@ describe Gcpc::Subscriber::Engine do
             # Do nothing
           end
         end
+
+        FileUtils.rm(temp_heartbeat_file_path) if File.exist?(temp_heartbeat_file_path)
       end
 
       let(:engine) {
         Gcpc::Subscriber::Engine.new(
           subscription: FakeSubscription.new,
           logger:       Logger.new(nil),
+          heartbeat: true,
+          heartbeat_file_path: temp_heartbeat_file_path,
         )
       }
 
-      before do
+      before do      
         stub_const "NopHandler", Class.new(Gcpc::Subscriber::BaseHandler)
         engine.handle(NopHandler)
       end
@@ -53,6 +67,7 @@ describe Gcpc::Subscriber::Engine do
           .and_return(FakeSubscriber.new)
         expect_any_instance_of(FakeSubscriber).to receive(:on_error).once
         expect_any_instance_of(FakeSubscriber).to receive(:start).once
+        expect(engine).to receive(:check_heartbeat).once
         # Don't do loop in #loop_until_receiving_signals
         expect(engine).to receive(:loop_until_receiving_signals).once
 
@@ -99,10 +114,13 @@ describe Gcpc::Subscriber::Engine do
           end
         end
 
-        it "calls Google::Cloud::Pubsub::Subscription#start" do
+        it "calls Google::Cloud::Pubsub::Subscription#start with heartbeat option" do
+          start_at = Time.now.to_i
           subscription = pubsub_resource_manager.subscription
           engine = Gcpc::Subscriber::Engine.new(
-            subscription: subscription
+            subscription: subscription,
+            heartbeat: true,
+            heartbeat_file_path: temp_heartbeat_file_path
           )
           handler = Handler.new
           engine.handle(handler)
@@ -119,6 +137,32 @@ describe Gcpc::Subscriber::Engine do
 
           expect(handler.handled.size).to eq 1
           expect(handler.handled.first).to eq "published payload"
+          expect(heartbeat_value(temp_heartbeat_file_path)).to be_between(start_at, Time.now.to_i)
+
+          engine.stop
+        end
+
+        it "calls Google::Cloud::Pubsub::Subscription#start without heartbeat option" do
+          subscription = pubsub_resource_manager.subscription
+          engine = Gcpc::Subscriber::Engine.new(
+            subscription: subscription,
+          )
+          handler = Handler.new
+          engine.handle(handler)
+
+          # Don't do loop in #loop_until_receiving_signals
+          expect(engine).to receive(:loop_until_receiving_signals).once
+
+          engine.run
+
+          topic = pubsub_resource_manager.topic
+          topic.publish("published payload")
+
+          sleep 1  # Wait until message is subscribed
+
+          expect(handler.handled.size).to eq 1
+          expect(handler.handled.first).to eq "published payload"
+          expect(heartbeat_value(Gcpc::Subscriber::Engine::DEFAULT_HEARTBEAT_FILE_PATH)).to eq nil
 
           engine.stop
         end
@@ -134,10 +178,13 @@ describe Gcpc::Subscriber::Engine do
           end
         end
 
-        it "calls Subscriber::Engine#nack and Subscriber::Engine#handle_error" do
+        it "calls Subscriber::Engine#nack and Subscriber::Engine#handle_error with heartbeat option" do
+          start_at = Time.now.to_i
           subscription = pubsub_resource_manager.subscription
           engine = Gcpc::Subscriber::Engine.new(
-            subscription: subscription
+            subscription: subscription,
+            heartbeat: true,
+            heartbeat_file_path: temp_heartbeat_file_path
           )
           handler = Handler.new
           engine.handle(handler)
@@ -154,6 +201,8 @@ describe Gcpc::Subscriber::Engine do
           topic.publish("published payload")
 
           sleep 1  # Wait until message is subscribed
+
+          expect(heartbeat_value(temp_heartbeat_file_path)).to be_between(start_at, Time.now.to_i)
 
           engine.stop
         end

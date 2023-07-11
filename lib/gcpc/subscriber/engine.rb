@@ -118,7 +118,8 @@ module Gcpc
         return unless @heartbeat
         Thread.new do
           loop do
-            return if worker_dead? || stopped?
+            break if stopped?
+            next if worker_dead?
 
             FileUtils.mkdir_p(File.dirname(@heartbeat_file_path)) unless File.exist?(@heartbeat_file_path)
             open(@heartbeat_file_path, 'w') do |f|
