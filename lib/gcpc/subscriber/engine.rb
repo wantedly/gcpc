@@ -186,22 +186,24 @@ module Gcpc
       end
 
       def write_heartbeat_to_store(type)
-        @heartbeat_queue_locker.synchronize do
-          thread_id = Thread.current.object_id
+        begin
+          @heartbeat_queue_locker.synchronize do
+            thread_id = Thread.current.object_id
 
-          case type
-          when 'start'
-            @heartbeat_queue.push({ thread_id: thread_id, start: Time.now.to_i })
-          when 'end'
-            # GC @heartbeat_queue to avoid memory leak
-            @heartbeat_queue.delete_if { |q| q[:thread_id] == thread_id }
-          else
-            raise "Invalid type passed to write_heartbeat_to_store: #{type}"
+            case type
+            when 'start'
+              @heartbeat_queue.push({ thread_id: thread_id, start: Time.now.to_i })
+            when 'end'
+              # GC @heartbeat_queue to avoid memory leak
+              @heartbeat_queue.delete_if { |q| q[:thread_id] == thread_id }
+            else
+              raise "Invalid type passed to write_heartbeat_to_store: #{type}"
+            end
           end
-          rescue ThreadError => e
-            raise "Falied to update heartbeat_queue. thread_id: #{thread_id}, heartbeat_queue: #{@heartbeat_queue}, error: #{e.message}"
-          end
+        rescue ThreadError => e
+          raise "Falied to update heartbeat_queue. thread_id: #{thread_id}, heartbeat_queue: #{@heartbeat_queue}, error: #{e.message}"
         end
       end
     end
+  end
 end
