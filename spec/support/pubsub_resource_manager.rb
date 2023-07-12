@@ -40,6 +40,5 @@ class PubsubResourceManager
 
     @subscription = nil
     @topic        = nil
-    FileUtils.rm(Gcpc::Subscriber::Engine::DEFAULT_HEARTBEAT_FILE_PATH) if File.exist?(Gcpc::Subscriber::Engine::DEFAULT_HEARTBEAT_FILE_PATH)
   end
 end
