@@ -201,7 +201,7 @@ module Gcpc
             end
           end
         rescue ThreadError => e
-          raise "Falied to update heartbeat_queue. thread_id: #{thread_id}, heartbeat_queue: #{@heartbeat_queue}, error: #{e.message}"
+          @logger.info("Falied to update heartbeat_queue. thread_id: #{thread_id}, heartbeat_queue: #{@heartbeat_queue}, error: #{e.message}")
         end
       end
     end
