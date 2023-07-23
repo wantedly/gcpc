@@ -5,7 +5,7 @@ module Gcpc
     class Engine
       WAIT_INTERVAL = 1
       WORKER_DEAD_THRESHOLD = 30 # second
-
+      BEAT_INTERVAL = 10
 
       # @param [Google::Cloud::Pubsub::Subscription] subscription
       # @param [<#handle, #on_error>] interceptors
@@ -24,6 +24,7 @@ module Gcpc
         @logger          = logger
         @subscriber_thread_status = {}
         @subscriber_thread_status_mutex = Mutex.new
+        @config          = Gcpc::Config.new
 
         @subscriber      = nil  # @subscriber is created by calling `#run`
         @handler         = nil  # @handler must be registered by `#handle`
@@ -50,6 +51,8 @@ module Gcpc
         @subscriber.start
 
         @logger.info("Started")
+
+        beat
 
         loop_until_receiving_signals(signals)
       end
@@ -82,21 +85,6 @@ module Gcpc
         )
       end
 
-      def alive?
-        # ・When processing a message, write the thread_id and timestamp at the start time into @subscriber_thread_status,
-        #   and remove that information from @subscriber_thread_status when the processing within that thread is finished.
-        #   @subscriber_thread_status = {:thread_id_12140=>1689637971}
-        # ・If the processing of the message gets stuck, the key, value will not be removed from @subscriber_thread_status.
-        # ・Since the application holds as many callback_threads as @subscriber.callback_threads with Subscription,
-        #   if the number of threads that have gotten stuck exceeds that callback_threads, it is considered that the worker unable to process Subscription queue.
-        return false if !@subscriber
-        return false if !@subscriber.started?
-        return false if @subscriber.stopped?
-
-        number_of_dead_threads = @subscriber_thread_status.find_all { |_, v| v < Time.now.to_i - WORKER_DEAD_THRESHOLD }.length
-        return @subscriber.callback_threads > number_of_dead_threads
-      end
-
     private
 
       def loop_until_receiving_signals(signals)
@@ -110,6 +98,41 @@ module Gcpc
 
         stop unless stopped?
       end
+
+      def fire_event(event)
+        arr = @config[:lifecycle_events][event]
+        arr.each do |block|
+          block.call
+        end
+      end
+
+      def beat
+        Thread.new do
+          loop do
+            if alive?
+              fire_event(:beat)
+            end
+            sleep BEAT_INTERVAL
+          end
+        end
+      end
+
+      def alive?
+        # ・When processing a message, write the thread_id and timestamp at the start time into @subscriber_thread_status,
+        #   and remove that information from @subscriber_thread_status when the processing within that thread is finished.
+        #   @subscriber_thread_status = {:thread_id_12140=>1689637971}
+        # ・If the processing of the message gets stuck, the key, value will not be removed from @subscriber_thread_status.
+        # ・Since the application holds as many callback_threads as @subscriber.callback_threads with Subscription,
+        #   if the number of threads that have gotten stuck exceeds that callback_threads, it is considered that the worker unable to process Subscription queue.
+        return false if !@subscriber
+        return false if !@subscriber.started?
+        return false if @subscriber.stopped?
+
+        number_of_dead_threads = @subscriber_thread_status.find_all { |_, v| v < Time.now.to_i - WORKER_DEAD_THRESHOLD }.length
+
+        return @subscriber.callback_threads > number_of_dead_threads
+      end
+
 
       # @param [Google::Cloud::Pubsub::ReceivedMessage] message
       def handle_message(message)

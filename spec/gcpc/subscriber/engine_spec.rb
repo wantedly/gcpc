@@ -109,7 +109,6 @@ describe Gcpc::Subscriber::Engine do
 
           # Don't do loop in #loop_until_receiving_signals
           expect(engine).to receive(:loop_until_receiving_signals).once
-          expect(engine.alive?).to eq false
 
           engine.run
 
@@ -120,11 +119,8 @@ describe Gcpc::Subscriber::Engine do
 
           expect(handler.handled.size).to eq 1
           expect(handler.handled.first).to eq "published payload"
-          expect(engine.alive?).to eq true
 
           engine.stop
-
-          expect(engine.alive?).to eq false
         end
       end
 
