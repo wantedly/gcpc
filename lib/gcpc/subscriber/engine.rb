@@ -6,6 +6,7 @@ module Gcpc
       WAIT_INTERVAL = 1
       WORKER_DEAD_THRESHOLD = 30 # second
       BEAT_INTERVAL = 10
+      HEART_BEAT_WORKER_NAME = 'heartbeat-worker'
 
       # @param [Google::Cloud::Pubsub::Subscription] subscription
       # @param [<#handle, #on_error>] interceptors
@@ -25,6 +26,7 @@ module Gcpc
         @subscriber_thread_status = {}
         @subscriber_thread_status_mutex = Mutex.new
         @config          = Gcpc::Config.new
+        @heartbeat_worker_thread = nil
 
         @subscriber      = nil  # @subscriber is created by calling `#run`
         @handler         = nil  # @handler must be registered by `#handle`
@@ -52,7 +54,7 @@ module Gcpc
 
         @logger.info("Started")
 
-        beat
+        run_heartbeat_worker
 
         loop_until_receiving_signals(signals)
       end
@@ -71,6 +73,7 @@ module Gcpc
         @logger.info('Stopping, will wait for background threads to exit')
 
         @subscriber.stop
+        @heartbeat_worker_thread.join
         @subscriber.wait!
 
         @logger.info('Stopped, background threads are shutdown')
@@ -99,28 +102,40 @@ module Gcpc
         stop unless stopped?
       end
 
-      def fire_event(event)
-        arr = @config[:lifecycle_events][event]
+      def fire_event(lifecycle_event)
+        arr = @config[lifecycle_event]
         arr.each do |block|
           block.call
         end
       end
 
-      def beat
-        Thread.new do
-          loop do
-            if alive?
+      def run_heartbeat_worker
+        @heartbeat_worker_thread = Thread.new do
+          @logger.info("Starting heartbeat worker...")
+          begin
+            last_fire_event_executed_at = 0
+            loop do
+              Thread.current.kill if stopped?
+
+              next if !alive?
+              # use this time compare instead of sleep to check stopped? and kill this thread immediately when stopped? == true
+              next if (Time.now.to_i - last_fire_event_executed_at) < BEAT_INTERVAL
+  
               fire_event(:beat)
+              last_fire_event_executed_at = Time.now.to_i
             end
-            sleep BEAT_INTERVAL
+          ensure
+            @logger.info("heartbeat worker stopped")
           end
         end
+
+        @heartbeat_worker_thread.name = HEART_BEAT_WORKER_NAME
       end
 
       def alive?
         # ・When processing a message, write the thread_id and timestamp at the start time into @subscriber_thread_status,
         #   and remove that information from @subscriber_thread_status when the processing within that thread is finished.
-        #   @subscriber_thread_status = {:thread_id_12140=>1689637971}
+        #   @subscriber_thread_status = {#<Thread:0x000000010302cd40 run>=>1690757417}
         # ・If the processing of the message gets stuck, the key, value will not be removed from @subscriber_thread_status.
         # ・Since the application holds as many callback_threads as @subscriber.callback_threads with Subscription,
         #   if the number of threads that have gotten stuck exceeds that callback_threads, it is considered that the worker unable to process Subscription queue.
@@ -128,7 +143,7 @@ module Gcpc
         return false if !@subscriber.started?
         return false if @subscriber.stopped?
 
-        number_of_dead_threads = @subscriber_thread_status.find_all { |_, v| v < Time.now.to_i - WORKER_DEAD_THRESHOLD }.length
+        number_of_dead_threads = @subscriber_thread_status.count { |_, v| v < Time.now.to_i - WORKER_DEAD_THRESHOLD }
 
         return @subscriber.callback_threads > number_of_dead_threads
       end
@@ -154,13 +169,13 @@ module Gcpc
 
       def ack(message)
         message.ack!
-        gc_subscriber_thread_status
+        cleanup_subscriber_thread_status
         worker_info("Acked message")
       end
 
       def nack(message)
         message.nack!
-        gc_subscriber_thread_status
+        cleanup_subscriber_thread_status
         worker_info("Nacked message")
       end
 
@@ -187,27 +202,23 @@ module Gcpc
       end
       
       def write_heartbeat_to_subscriber_thread_status
-        thread_id = Thread.current.object_id
-
         begin
           @subscriber_thread_status_mutex.synchronize do
-            @subscriber_thread_status["thread_id_#{thread_id.to_s.to_sym}".to_sym] = Time.now.to_i
+            @subscriber_thread_status[Thread.current] = Time.now.to_i
           end
         rescue ThreadError => e
-          @logger.info("Falied to write subscriber_thread_status. thread_id: #{thread_id}, subscriber_thread_status: #{@subscriber_thread_status}, error: #{e.message}")
+          @logger.info("Falied to write subscriber_thread_status. thread_id: #{Thread.current.object_id}, subscriber_thread_status: #{@subscriber_thread_status}, error: #{e.message}")
         end
       end
 
-      def gc_subscriber_thread_status
-        thread_id = Thread.current.object_id
-
+      def cleanup_subscriber_thread_status
         begin
           @subscriber_thread_status_mutex.synchronize do
-            # GC to avoid memory leak
-            @subscriber_thread_status.delete_if { |k, _| k == "thread_id_#{thread_id.to_s.to_sym}".to_sym }
+            # cleanup to avoid memory leak
+            @subscriber_thread_status.delete(Thread.current)
           end
         rescue ThreadError => e
-          @logger.info("Falied to gc subscriber_thread_status. thread_id: #{thread_id}, subscriber_thread_status: #{@subscriber_thread_status}, error: #{e.message}")
+          @logger.info("Falied to cleanup subscriber_thread_status. thread_id: #{Thread.current.object_id}, subscriber_thread_status: #{@subscriber_thread_status}, error: #{e.message}")
         end
       end
     end

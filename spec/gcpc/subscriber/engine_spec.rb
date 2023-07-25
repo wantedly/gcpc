@@ -55,6 +55,7 @@ describe Gcpc::Subscriber::Engine do
         expect_any_instance_of(FakeSubscriber).to receive(:start).once
         # Don't do loop in #loop_until_receiving_signals
         expect(engine).to receive(:loop_until_receiving_signals).once
+        expect(engine).to receive(:run_heartbeat_worker).once
 
         engine.run
 
@@ -117,10 +118,16 @@ describe Gcpc::Subscriber::Engine do
 
           sleep 1  # Wait until message is subscribed
 
+          heartbeat_worker_thread = Thread.list.find{ |t| t.name == Gcpc::Subscriber::Engine::HEART_BEAT_WORKER_NAME }
+          expect(heartbeat_worker_thread.nil?).to eq false
+          expect(heartbeat_worker_thread.alive?).to eq true
+
           expect(handler.handled.size).to eq 1
           expect(handler.handled.first).to eq "published payload"
 
           engine.stop
+
+          expect(heartbeat_worker_thread.alive?).to eq false
         end
       end
 
@@ -155,7 +162,13 @@ describe Gcpc::Subscriber::Engine do
 
           sleep 1  # Wait until message is subscribed
 
+          heartbeat_worker_thread = Thread.list.find{ |t| t.name == Gcpc::Subscriber::Engine::HEART_BEAT_WORKER_NAME }
+          expect(heartbeat_worker_thread.nil?).to eq false
+          expect(heartbeat_worker_thread.alive?).to eq true
+
           engine.stop
+
+          expect(heartbeat_worker_thread.alive?).to eq false
         end
       end
     end

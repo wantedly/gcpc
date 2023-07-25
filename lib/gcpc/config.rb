@@ -4,23 +4,21 @@ module Gcpc
   class Config
     extend Forwardable
 
-    DEFAULTS = {
-      lifecycle_events: {
-        # triggers on every 10 seconds if process alive
-        beat: []
-      }
+    LIFECYCLE_EVENTS = {
+      # triggers on every 10 seconds if process alive
+      beat: []
     }
 
-    def_delegators :@options, :[]
+    def_delegators :@lifecycle_events, :[]
 
     def initialize
-      @options = DEFAULTS
+      @lifecycle_events = LIFECYCLE_EVENTS
     end
 
     def on(event, &block)
-      raise ArgumentError, "Invalid event name: #{event}" unless @options[:lifecycle_events].keys.include?(event)
+      raise ArgumentError, "Invalid event name: #{event}" unless @lifecycle_events.keys.include?(event)
 
-      @options[:lifecycle_events][event] << block
+      @lifecycle_events[event] << block
     end
   end
 end
