@@ -25,7 +25,7 @@ module Gcpc
         @logger          = logger
         @subscriber_thread_status = {}
         @subscriber_thread_status_mutex = Mutex.new
-        @config          = Gcpc::Config.new
+        @config          = Gcpc::Config.instance || Gcpc::Config.new
         @heartbeat_worker_thread = nil
 
         @subscriber      = nil  # @subscriber is created by calling `#run`
@@ -73,7 +73,7 @@ module Gcpc
         @logger.info('Stopping, will wait for background threads to exit')
 
         @subscriber.stop
-        @heartbeat_worker_thread.join
+        @heartbeat_worker_thread.join if @heartbeat_worker_thread
         @subscriber.wait!
 
         @logger.info('Stopped, background threads are shutdown')
@@ -102,27 +102,23 @@ module Gcpc
         stop unless stopped?
       end
 
-      def fire_event(lifecycle_event)
-        arr = @config[lifecycle_event]
-        arr.each do |block|
-          block.call
-        end
-      end
-
       def run_heartbeat_worker
         @heartbeat_worker_thread = Thread.new do
           @logger.info("Starting heartbeat worker...")
           begin
-            last_fire_event_executed_at = 0
+            last_beat_at = 0
             loop do
               Thread.current.kill if stopped?
 
               next if !alive?
               # use this time compare instead of sleep to check stopped? and kill this thread immediately when stopped? == true
-              next if (Time.now.to_i - last_fire_event_executed_at) < BEAT_INTERVAL
-  
-              fire_event(:beat)
-              last_fire_event_executed_at = Time.now.to_i
+              next if (Time.now.to_i - last_beat_at) < BEAT_INTERVAL
+
+              @config.beat.each do |block|
+                block.call
+              end
+
+              last_beat_at = Time.now.to_i
             end
           ensure
             @logger.info("heartbeat worker stopped")
