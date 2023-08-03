@@ -25,7 +25,6 @@ module Gcpc
         @logger          = logger
         @subscriber_thread_status = {}
         @subscriber_thread_status_mutex = Mutex.new
-        @config          = Gcpc::Config.instance
         @heartbeat_worker_thread = nil
 
         @subscriber      = nil  # @subscriber is created by calling `#run`
@@ -113,7 +112,7 @@ module Gcpc
 
               next unless alive?
 
-              @config.beat.each(&:call)
+              Gcpc::Config.instance.beat.each(&:call)
 
               sleep BEAT_INTERVAL
             end
