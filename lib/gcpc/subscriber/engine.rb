@@ -72,9 +72,14 @@ module Gcpc
         @logger.info('Stopping, will wait for background threads to exit')
 
         @subscriber.stop
-        # wakeup raise ThreadError when the thread dead
-        @heartbeat_worker_thread&.wakeup if @heartbeat_worker_thread&.alive?
-        @heartbeat_worker_thread&.join
+
+        begin
+          @heartbeat_worker_thread&.wakeup
+          @heartbeat_worker_thread&.join
+        rescue ThreadError => e
+          @logger.error(e.message)
+        end
+
         @subscriber.wait!
 
         @logger.info('Stopped, background threads are shutdown')
