@@ -131,8 +131,7 @@ module Gcpc
         # ・If the processing of the message gets stuck, the key, value will not be removed from @subscriber_thread_status.
         # ・Since the application holds as many callback_threads as @subscriber.callback_threads with Subscription,
         #   if the number of threads that have gotten stuck exceeds that callback_threads, it is considered that the worker unable to process Subscription queue.
-        return false if !@subscriber
-        return false if !@subscriber.started?
+        return false unless @subscriber && @subscriber.started?
         return false if @subscriber.stopped?
 
         number_of_dead_threads = @subscriber_thread_status.count { |_, v| v < Time.now.to_i - WORKER_DEAD_THRESHOLD }
