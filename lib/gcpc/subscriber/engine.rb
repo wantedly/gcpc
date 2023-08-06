@@ -75,10 +75,11 @@ module Gcpc
 
         begin
           @heartbeat_worker_thread&.wakeup
-          @heartbeat_worker_thread&.join
         rescue ThreadError => e
           @logger.error(e.message)
         end
+
+        @heartbeat_worker_thread&.join
 
         @subscriber.wait!
 
