@@ -75,6 +75,7 @@ module Gcpc
 
         begin
           @heartbeat_worker_thread&.wakeup
+        # ThreadError exeption will be raised when the thread already dead
         rescue ThreadError => e
           @logger.error(e.message)
         end
