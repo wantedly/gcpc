@@ -4,6 +4,10 @@
 <!-- All changes (implementation, or doc changes) are worth noting. -->
 <!-- The changes listed above will go below when a new release is being prepared. -->
 
+## 0.0.8
+
+- Add an API for heartbeat https://github.com/wantedly/gcpc/pull/25
+
 ## 0.0.7
 
 - Add explicit loading of forwardable https://github.com/wantedly/gcpc/pull/10
